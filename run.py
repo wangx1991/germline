@@ -108,6 +108,8 @@ def main():
     trim_read_pairs(read1, read2, trimmed1, trimmed2, min_read_len,
                     common_seq1, common_seq2, stats_file, logger_trim_process,
                     logger_trim_errors)
+                           common_seq1, common_seq2, stats_file, logger_trim_process,
+                           logger_trim_errors)
 
     ##########################################################################################
     #---align
@@ -127,7 +129,7 @@ def main():
     logger_bwa_process, logger_bwa_errors = store_align_logs(log_align_dir)
 
     returncode = align_reads_bwa(bwa_dir, ref_fa_file, ref_index_name, trim_read1, trim_read2, 
-                                 out_file, num_threads, logger_bwa_process, logger_bwa_errors)
+                                                out_file, num_threads, logger_bwa_process, logger_bwa_errors)
 
     ##########################################################################################
     #---post_align
@@ -150,11 +152,11 @@ def main():
     #max_dist = 2
     out_file2 = filtered_dir + '/' + sample + '_filtered.sam'
     filter_alignment_samtools(samtools_dir, alignment_sam, min_mapq,
-                              max_soft_clip, out_file1, stats_file,
-                              logger_filter_process, logger_filter_errors)
+                                         max_soft_clip, out_file1, stats_file,
+                                         logger_filter_process, logger_filter_errors)
     identify_gs_primers(samtools_dir, out_file1, primers_file, max_dist, out_file2,
-                        primer_stats_file, stats_file, logger_filter_process,
-                        logger_filter_errors)
+                                 primer_stats_file, stats_file, logger_filter_process,
+                                 logger_filter_errors)
     ##########################################################################################
     #---Germline variant calling
     ##########################################################################################
