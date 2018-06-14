@@ -106,8 +106,6 @@ def main():
 
     logger_trim_process, logger_trim_errors = store_trim_logs(log_trim_dir)
     trim_read_pairs(read1, read2, trimmed1, trimmed2, min_read_len,
-                    common_seq1, common_seq2, stats_file, logger_trim_process,
-                    logger_trim_errors)
                            common_seq1, common_seq2, stats_file, logger_trim_process,
                            logger_trim_errors)
 
