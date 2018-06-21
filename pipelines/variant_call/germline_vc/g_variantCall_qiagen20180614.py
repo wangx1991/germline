@@ -39,8 +39,10 @@ def script_information():
     print "Required environment：python \  samtools \ GATK4"
 
 def sam_to_bem(gatk_dir, samtools_dir,
-                            sam, sample, output, memorySize, 
+                            sam, sample, 
+                            output, memorySize, 
                             exome_target_bed, known_sites, 
+                            read_length, 
                             logger_g_variantCalling_process, logger_g_variantCalling_errors):
     # sam to bam By SortSam in GATK
     bam = output + '/' + sample + '.bam'
@@ -66,43 +68,49 @@ def sam_to_bem(gatk_dir, samtools_dir,
     logger_g_variantCalling_process.info('GATK marks the duplicates.')
     os.system(command_count2)
     #FixMateInformation
-    marked_fixed_bam = output + '/' + sample + '_marked_fixed.bam'
-    command_count3 ='{0} --java-options "{1}" FixMateInformation -I {2} -O {3} -SO coordinate'.format(
-        gatk_dir, memorySize, bam, mark_bam, marked_fixed_bam)
-    logger_g_variantCalling_process.info('GATK fixs the marked duplicates.')
-    os.system(command_count3)
+    #marked_fixed_bam = output + '/' + sample + '_marked_fixed.bam'
+    #command_count3 ='{0} --java-options "{1}" FixMateInformation -I {2} -O {3} -SO coordinate'.format(
+     #   gatk_dir, memorySize, bam, mark_bam, marked_fixed_bam)
+    #logger_g_variantCalling_process.info('GATK fixs the marked duplicates.')
+    #os.system(command_count3)
     #build the index of the marked_fixed bam
-    command_count4 = '{0} index {1}'.format(samtools_dir, marked_fixed_bam)
-    logger_g_variantCalling_process.info('Samtools build the index of  marked_fixed bam.')
+    command_count4 = '{0} index {1}'.format(samtools_dir, mark_bam)
+    logger_g_variantCalling_process.info('Samtools build the index of  marked bam.')
     os.system(command_count4)
     #---------------------------------------
     #Base(Quality Score) Recalibration
     #BaseRecalibrator---Generate Base Quality Score Recalibration (BQSR) model
     recal_data_table =  output + '/' + sample + '.recal_data.table'
     command_count5 ='{0} --java-options "{1}" BaseRecalibrator -R {2} -I {3} -L {4} -ip {5} --known-sites {6} -O {7}'.format(
-        gatk_dir, memorySize, ref_fa_file, marked_fixed_bam, exome_target_bed, read_length, known_sites, recal_data_table)
+        gatk_dir, memorySize, ref_fa_file, mark_bam, exome_target_bed, read_length, known_sites, recal_data_table)
     logger_g_variantCalling_process.info('GATK generate Base Quality Score Recalibration (BQSR) model.')
     os.system(command_count5)
     #GatherBQSRReports--Generate report of Base Quality Score Recalibration (BQSR) model
-    bgsr_bam =  output + '/' + sample + '.sorted.MarkDuplicates.BQSR.bam'
+    BQSRReports = output + '/' + sample + '.BQSR.report'
     command_count6 ='{0} --java-options "{1}" GatherBQSRReports -I {2} -O {3}'.format(
-        gatk_dir, memorySize, ref_fa_file, marked_fixed_bam, exome_target_bed, read_length, known_sites, recal_data_table)
+        gatk_dir, memorySize,  recal_data_table, BQSRReports)
     logger_g_variantCalling_process.info('GATK generate report of Base Quality Score Recalibration (BQSR) model.')
     os.system(command_count6)
     #ApplyBQSR--Apply Base Quality Score Recalibration (BQSR) model
+    bgsr_bam =  output + '/' + sample + '_sorted.MarkDuplicates.BQSR.bam'
+    command_count7 ='{0} --java-options "{1}" ApplyBQSR -R {2} -I {3} -bqsr {4}  -L {5} -ip {6} -O {7}'.format(
+        gatk_dir, memorySize,  ref_fa_file, mark_bam, recal_data_table, exome_target_bed, read_length, bgsr_bam)
+    logger_g_variantCalling_process.info('GATK apply Base Quality Score Recalibration (BQSR) model.')
+    os.system(command_count7)
     #time used for translating the format of the sam by samtools and GATK
     logger_g_variantCalling_process.info('Time cost at  translating the format of the sam by samtools and GATK == ' + str((time.time() - time_start) / 60) + 'min')
     print('Compeleted translating the format of the sam by samtools and GATK .')
 
-def germline_variant_calling(gatk_dir, marked_fixed_bam,
+def germline_variant_calling(gatk_dir, marked_BQSR_bam,
                             sample, output, 
                             memorySize, ref_fa_file,
                             exome_target_bed, ERC,
-                            read_filter, reduce_logs, create_output_variant_index,
+                            read_filter, read_length,
+                            reduce_logs, create_output_variant_index,
                             logger_g_variantCalling_process, logger_g_variantCalling_errors)
     vcf =  output + '/' + sample + '_variants.g.vcf'
-    command_count ='{0} --java-options "{1}" HaplotypeCaller  -R {2} -I {3} -O {4}'.format(
-        gatk_dir, memorySize, ref_fa_file, marked_fixed_bam, vcf)
+    command_count ='{0} --java-options "{1}" HaplotypeCaller  -R {2} -I {3} -L {4} -ip {5} -O {6}'.format(
+        gatk_dir, memorySize, ref_fa_file, marked_BQSR_bam, exome_target_bed, read_length, vcf)
     logger_g_variantCalling_process.info('Begin to confirm the options parameters of running HaplotypeCaller.')
     if ERC == NULL:
         logger_g_variantCalling_process.info('Runs HaplotypeCaller in default mode on a single input BAM file containing sequence data!')
@@ -113,11 +121,11 @@ def germline_variant_calling(gatk_dir, marked_fixed_bam,
         else:
             logger_g_variantCalling_process.info('{0} is not a HaplotypeCaller model. Please check the input parameter of ERC!'.format(ERC))
             exit
-    if exome_target == NULL:
-        logger_g_variantCalling_process.info('Runs HaplotypeCaller without exome intervals!')
-    else:
-        logger_g_variantCalling_process.info('Runs HaplotypeCaller with exome intervals!')
-        command_count = command_count + '-L {0}'.format(exome_target)
+    # if exome_target == NULL:
+    #    logger_g_variantCalling_process.info('Runs HaplotypeCaller without exome intervals!')
+    # else:
+    #    logger_g_variantCalling_process.info('Runs HaplotypeCaller with exome intervals!')
+    #    command_count = command_count + '-L {0}'.format(exome_target)
     if read_filter == NULL:
         logger_g_variantCalling_process.info('Run HaplotypeCaller without a read filter!')
     else:
@@ -149,6 +157,7 @@ def main():
     parser.add_argument("--ref_fa_file", help = "the path of ref fasta", type = str)
     #parser.add_argument("--exome_target", help = "the list of exome intervals", type = str, default = NULL)
     parser.add_argument("--known_sites", help = "the list of --known-sites , sep=',' ", type = str)
+    parser.add_argument("--read_length", help = "the length of reads ", type = int)
     parser.add_argument("--exome_target_bed", help = "the bed file of exome intervals", type = str) 
     parser.add_argument("--ERC", help = "switch to running HaplotypeCaller in GVCF mode", type = str, default = NULL)
     parser.add_argument("--samtools_dir", help = "the install path of samtools", type = str)
@@ -167,6 +176,7 @@ def main():
     samtools_dir = args.samtools_dir
     ref_fa_file = args.ref_fa_file
     known_sites = args.known_sites
+    read_length = args.read_length
     exome_target_bed = args.exome_target_bed
     ERC = args.ERC
     read_filter = args.read_filter
@@ -185,14 +195,17 @@ def main():
 #---
     sam = source + '/' + sample + '_filtered.sam'
     sam_to_bem(gatk_dir, samtools_dir,
-                            sam, sample, output, memorySize, exome_target_bed, known_sites, 
+                            sam, sample, output, memorySize,
+                            exome_target_bed, 
+                            known_sites, read_length,
                             logger_g_variantCalling_process, logger_g_variantCalling_errors)
-    marked_fixed_bam = output + '/' + sample + '_marked_fixed.bam'
-    germline_variant_calling(gatk_dir, marked_fixed_bam,
+    marked_BQSR_bam = output + '/' + sample + '_sorted.MarkDuplicates.BQSR.bam'
+    germline_variant_calling(gatk_dir, marked_BQSR_bam,
                             sample, output, 
                             memorySize, ref_fa_file, 
                             exome_target_bed, ERC,
-                            read_filter, reduce_logs, create_output_variant_index,
+                            read_filter, read_length,
+                            reduce_logs, create_output_variant_index,
                             logger_g_variantCalling_process, logger_g_variantCalling_errors)
 
 if __name__ == '__main__':
