@@ -34,9 +34,9 @@ def store_logs(log_dir):
 
 
 def script_information():
-    print "\nApplication: Germline variant calling of QIAseq Targeted DNA Panel\n"
-    print "====================================================================="
-    print "Required environment：python \  samtools \ GATK4"
+    print ("\nApplication: Germline variant calling of QIAseq Targeted DNA Panel\n")
+    print ("=====================================================================")
+    print ("Required environment：python \  samtools \ GATK4")
 
 def sam_to_bem(gatk_dir, samtools_dir,
                             sam, sample, 
