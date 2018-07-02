@@ -20,9 +20,9 @@ from pipelines.post_align.post_alignment import filter_alignment_samtools , iden
 
 
 def script_information():
-    print "\nApplication: pipelines of QIAseq Targeted DNA Panel\n"
-    print "====================================================================="
-    print "Required environment£ºpython \ bwa \ samtools \ GATK"
+    print ("\nApplication: pipelines of QIAseq Targeted DNA Panel\n")
+    print ("=====================================================================")
+    print ("Required environment£ºpython \ bwa \ samtools \ GATK")
 
 parser = argparse.ArgumentParser(usage = "\n\npython %(prog)s --source --sample_name --tailname --common_seq1 --common_seq2 --output --min_read_len --bwa_dir --ref_index_name --ref_fa_file --num_threads --samtools_dir --min_mapq --max_soft_clip --max_dist")
 parser.add_argument("--source", help = "Path to input reads in FASTA format", type = str)
@@ -155,6 +155,12 @@ def main():
     identify_gs_primers(samtools_dir, out_file1, primers_file, max_dist, out_file2,
                                  primer_stats_file, stats_file, logger_filter_process,
                                  logger_filter_errors)
+    ##########################################################################################
+    #---barcode clustering
+    ##########################################################################################
+    #clustering_dir
+
+
     ##########################################################################################
     #---Germline variant calling
     ##########################################################################################
