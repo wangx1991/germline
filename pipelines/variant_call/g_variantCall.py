@@ -1,8 +1,8 @@
 from __future__ import barry_as_FLUFL
 
 __all__  =  [ 'sample' , 'output ' , 'memorySize' , 'gatk_dir ' , 'vready_sam', 'marked_BQSR_bam',
-              'ref_fa_file' , 'exome_target_bed' , 'ERC' , 'samtools_dir' ,
-              'known_sites', 'read_length', 
+              'ref_fa_file' ,'ref_fa_dict', 'exome_target_bed' , 'ERC' , 'samtools_dir' ,
+              'known_sites', 'read_length', 'read_filter',
               'logger_g_variantCalling_process', 'logger_g_variantCalling_errors']
 __version__  =  '1.0'
 __author__  =  'Wang Xian'
@@ -17,35 +17,38 @@ import itertools
 time_start = time.time()
 
 def sam_to_bem(gatk_dir, samtools_dir,
-               vready_sam, sample, 
-               output, memorySize, 
-               exome_target_bed, known_sites, 
-               read_length, 
+               vready_sam, sample,
+               output, memorySize,
+               exome_target_bed, 
+               ref_fa_file,ref_fa_dict,
+               known_sites, read_length,
                logger_g_variantCalling_process, logger_g_variantCalling_errors):
     # sam to bam By SortSam in GATK
-    bam = output + '/' + sample + '.bam'
+    bam = output + '/' + sample + '_sorted.bam'
     command_count = '{0} --java-options "{1}" SortSam -SO coordinate -I {2} -O {3}'.format(
         gatk_dir, memorySize, sam, bam)
     
     time_start1= time.time()
     os.system(command_count)
     logger_g_variantCalling_process.info("ATK sort sam to bam---cost %.2f min.", (time.time()-time_start1)/60)
-    #
+    #target bed to exon intervel list
+    #exon_intervel
+    #GATK BedToIntervalList -I S31285117_Regions.bed -O Exon.Interval.bed -SD ../ref/hg19.dict
     #statistics of coverages
-    cov_file =  output + '/' + sample + '.cov.txt'
-    command_count_1 = '{0} CollectHsMetrics -BI {1} -TI {2} -I {3} -O {4}'.format(
-        gatk_dir, exome_target_bed, exome_target_bed, bam, cov_file)
-    time_start1 = time.time()
-    os.system(command_count_1)
-    logger_g_variantCalling_process.info('GATK count the coverage----cost %.2f min.', (time.time()-time_start1)/60)
+    #cov_file =  output + '/' + sample + '.cov.txt'
+    #command_count_1 = '{0} CollectHsMetrics -BI {1} -TI {2} -I {3} -O {4}'.format(
+    #    gatk_dir, exome_target_bed, exome_target_bed, bam, cov_file)
+    #time_start1 = time.time()
+    #os.system(command_count_1)
+    #logger_g_variantCalling_process.info('GATK count the coverage----cost %.2f min.', (time.time()-time_start1)/60)
     #build index of bam By samtools
     command_count1 = '{0} index {1}'.format(samtools_dir, bam)
     time_start1 = time.time()
     os.system(command_count1)
     logger_g_variantCalling_process.info('Samtools build the index of bam----cost %.2f min.', (time.time()-time_start1)/60)
     #MarkDuplicates
-    mark_bam = output + '/' + sample + '_marked.bam'
-    bam_metrics = output + '/' + sample + '.metrics'
+    mark_bam = output + '/' + sample + '_sorted.MarkDuplicates.bam'
+    bam_metrics = output + '/' + sample + '_sorted.MarkDuplicates.metrics'
     command_count2 ='{0} --java-options "{1}" MarkDuplicates -I {2} -O {3} -M {4}'.format(
         gatk_dir, memorySize, bam, mark_bam, bam_metrics)
     time_start1= time.time()
@@ -87,27 +90,27 @@ def germline_variant_calling(gatk_dir, marked_BQSR_bam,
                             memorySize, ref_fa_file,
                             exome_target_bed, ERC,
                             read_filter, read_length,
-                            logger_g_variantCalling_process, logger_g_variantCalling_errors)
+                            logger_g_variantCalling_process, logger_g_variantCalling_errors):
     command_count ='{0} --java-options "{1}" HaplotypeCaller  -R {2} -I {3} -L {4} -ip {5}'.format(
         gatk_dir, memorySize, ref_fa_file, marked_BQSR_bam, exome_target_bed, read_length)
     logger_g_variantCalling_process.info('Begin to confirm the options parameters of running HaplotypeCaller.')
-    if ERC == NULL:
+    if ERC == 'no':
         logger_g_variantCalling_process.info('Runs HaplotypeCaller in default mode on a single input BAM file containing sequence data!')
         vcf =  output + '/' + sample + '_variants.vcf'
-        command_count + = vcf
+        command_count = command_count + ' ' +vcf
     else:
-        if ERC == 'GVCF' 
+        if ERC == 'GVCF':
             logger_g_variantCalling_process.info('Runs HaplotypeCaller in GVCF mode!')
             vcf =  output + '/' + sample + '_variants.g.vcf'
-            command_count + = vcf + '-ERC {0}'.format(ERC)
+            command_count = command_count + ' '+ vcf + '-ERC {0}'.format(ERC)
         else:
             logger_g_variantCalling_process.info('{0} is not a HaplotypeCaller model. Please check the input parameter of ERC!'.format(ERC))
 
-    if read_filter == NULL:
+    if read_filter == 'no':
         logger_g_variantCalling_process.info('Run HaplotypeCaller without a read filter!')
     else:
         logger_g_variantCalling_process.info('Run HaplotypeCaller with a read filter that deals with some problems in bam!')
-        command_count + = '--read-filter {0}'.format(read_filter)
+        command_count = command_count + ' ' + '--read-filter {0}'.format(read_filter)
     logger_g_variantCalling_process.info('Begin to do germline variant calling.')
     time_start1 = time.time()
     os.system(command_count)

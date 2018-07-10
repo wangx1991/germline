@@ -1,8 +1,8 @@
 from __future__ import barry_as_FLUFL
 
-__all__  =  ['samtools_dir' , 'alignment_sam' , 'min_mapq' , 'max_soft_clip' , 'out_file' , 'stats_file' , 'primers_file' , 'max_dist' , 'align_stats_file' , 'logger_filter_process' , 'logger_filter_errors']
+__all__  =  ['samtools_dir' , 'alignment_sam' , 'min_mapq' , 'max_soft_clip' , 'out_file' , 'stats_file' , 'primers_file' , 'primer_stats_file', 'max_dist' , 'logger_filter_process' , 'logger_filter_errors']
 __version__  =  '1.0'
-__author__  =  'Wang Xian'
+__author__  =  'Maggie Ruimin Sun'
 
 import os
 import sys
@@ -86,8 +86,7 @@ def filter_alignment_samtools(samtools_dir, alignment_sam, min_mapq,
     # stats_out.write('Number of alignments beginning with less than {0} exact matches == {1}\n'.format(
     #    max_soft_clip, hmapq_count-final_count))
     stats_out.write('Number of alignments passed SAMTools filtration == {0}\n'.format(final_count))
-    stats_out.write(
-        'Percent of alignments passed SAMTools filtration == {0}%\n'.format(100 * final_count / total_count))
+    stats_out.write('Percent of alignments passed SAMTools filtration == {0}%\n'.format(100 * final_count / total_count))
     stats_out.write('Time cost at samtools filtration == {0} min\n'.format((time.time() - time_start) / 60))
     stats_out.close()
     os.system('rm ' + stats_file_tmp)
@@ -130,7 +129,7 @@ def compare_seqs(primer, seq):
 
 
 def identify_gs_primers(samtools_dir, alignment_sam, primers_file, max_dist,
-                        out_file, stats_file, align_stats_file,
+                        out_file, stats_file, primer_stats_file,
                         logger_filter_process, logger_filter_errors):
     primers = {}
     primer_pos = {}
@@ -275,10 +274,31 @@ def identify_gs_primers(samtools_dir, alignment_sam, primers_file, max_dist,
     print('Number of off-target alignments == {0} ({1}%)'.format(num_off_target, ratio_off))
     print('Number of on-target alignments == {0} ({1}%)'.format(num_on_target, ratio_on))
 
-    stats_out = open(align_stats_file, 'a')
+    stats_out = open(stats_file, 'a')
     stats_out.write('Number of reads mapped in unproper pairs == ' + str(num_unproper_pairs) + '\n')
     stats_out.write('Number of primers of interest == ' + str(num_primers) + '\n')
     stats_out.write('Number of off-target alignments == {0} ({1}%)\n'.format(num_off_target, ratio_off))
     stats_out.write('Number of on-target alignments == {0} ({1}%)\n'.format(num_on_target, ratio_on))
     stats_out.write('Time cost at identification of gene specific primers == ' + str((time.time() - time_start) / 60) + 'min')
     stats_out.close()
+
+    #for read in off_target_reads:
+    #    seq = off_target_reads[read]
+    #    for primer in primers:
+    #        distf = compare_seqs(primers[primer]['seq'], seq[0:(primers[primer]['length']+max_dist)])
+    #        distr = compare_seqs(primers[key_primer]['seq'], seq[(len(seq)-primers[key_primer]['length']-max_dist):])
+    #        if distf <= max_dist:
+    #            primers[primer]['mis-target'].append(read+'_0_'+str(distf))
+    #        if distr <= max_dist:
+    #            primers[primer]['mis-target'].append(read+'_1_'+str(distr))
+    
+    #st_out = open(primer_stats_file, 'w')
+    #st_out.write('chrm,F/R,start,stop,sequence,#on-target-reads,%on-target-reads,#mis-targets,mis-targets\n')
+    #for pr in sorted(primers):
+    #    ratio = 100*primers[pr]['on-target'] / float(num_on_target)
+    #    mis_target = len(primers[pr]['mis-target'])
+    #    st_out.write(','.join([primers[pr]['chromosome'], primers[pr]['strand'], 
+    #                     primers[pr]['start'],primers[pr]['stop'], 
+    #                     primers[pr]['seq'], str(primers[pr]['on-target']),
+    #                     str(ratio), str(mis_target),';'.join(primers[pr]['mis-target'])])+'\n')
+    #st_out.close()

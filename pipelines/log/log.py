@@ -69,6 +69,31 @@ def store_align_logs(log_dir):
                                     formatter_bwa_errors)
     return logger_bwa_process, logger_bwa_errors
 
+
+def store_cluster_logs(log_dir):
+    formatter_process = logging.Formatter("%(asctime)s;%(message)s")
+    formatter_errors = logging.Formatter("%(asctime)s;%(levelname)s;                                         %(message)s")
+    logger_umi_process = setup_logger('Running Barcode Clustering Messages', 
+                                  log_dir + '/umi_tagging_process.log',
+                                  formatter_process)
+    logger_umi_errors = setup_logger('Errors & Warnings of Barcode Clustering', 
+                                 log_dir + '/umi_tagging_errors.log',
+                                 formatter_errors)
+    return logger_umi_process, logger_umi_errors
+
+def store_reformat_logs(log_dir):
+    formatter_reformat_process = logging.Formatter("%(asctime)s;%(message)s")
+    formatter_reformat_errors = logging.Formatter(
+        "%(asctime)s;%(levelname)s;                                             %(message)s")
+    logger_reformat_process = setup_logger('Running Messages of reformating sam file',
+                                           log_dir + '/reformat_process.log',
+                                           formatter_reformat_process)
+    logger_reformat_errors = setup_logger('Errors & Warnings of reformating sam file',
+                                          log_dir + '/reformat_errors.log',
+                                          formatter_reformat_errors)
+    return logger_reformat_process, logger_reformat_errors
+
+
 def store_germline_VC_logs(log_dir):
     formatter_germline_VC_process = logging.Formatter("%(asctime)s;%(message)s")
     formatter_germline_VC_errors = logging.Formatter("%(asctime)s;%(levelname)s; %(message)s")

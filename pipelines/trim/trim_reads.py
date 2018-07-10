@@ -2,7 +2,7 @@ from __future__ import barry_as_FLUFL
 
 __all__  =  ['read1' , 'read2' , 'trimmed1' , 'trimmed2' , 'min_read_len' , 'common_seq1' , 'common_seq2' , 'stats_file' , 'logger_trim_process' , 'logger_trim_errors']
 __version__  =  '1.0'
-__author__  =  'Wang Xian'
+__author__  =  'Maggie Ruimin Sun'
 
 
 import logging
@@ -14,7 +14,6 @@ import gzip
 import itertools
 
 #----------------------------------------------------------
-
 def read_fq(file_name, logger_trim_process, logger_trim_errors):
     if not os.path.isfile(file_name):
         logger_trim_errors.error("%s does not exist!\n", file_name)
@@ -90,9 +89,9 @@ def trim_read_pairs(read1, read2, trimmed1, trimmed2, min_read_len, common_seq1,
                     logger_trim_process.info("Short read pair: \n\t"
                                              + '\t'.join(r1) + '\n\t' + '\t'.join(r2) + '\n')
                 else:
-                    umi = umi + ';' + qua
-                    h1 = r1[0].strip() + ' ' + umi + '\n'
-                    h2 = r2[0].strip() + ' ' + umi + '\n'
+                    #umi = umi + ';' + qua
+                    h1 = r1[0].split(' ')[0] + '_' + umi + ' ' + r1[0].split(' ')[1]
+                    h2 = r2[0].split(' ')[0] + '_' + umi + ' ' + r2[0].split(' ')[1]
                     fout1.write(h1 + r1[1] + r1[2] + r1[3])
                     fout2.write(h2 + r2[1] + r2[2] + r2[3])
     fout1.close()

@@ -63,16 +63,10 @@ def sam_to_bem(gatk_dir, samtools_dir,
     #MarkDuplicates
     mark_bam = output + '/' + sample + '_marked.bam'
     bam_metrics = output + '/' + sample + '.metrics'
-    command_count2 ='{0} --java-options "{1}" MarkDuplicates -I {2} -O {3} -M {4}''.format(
+    command_count2 ='{0} --java-options "{1}" MarkDuplicates -I {2} -O {3} -M {4}'.format(
         gatk_dir, memorySize, bam, mark_bam, bam_metrics)
     logger_g_variantCalling_process.info('GATK marks the duplicates.')
     os.system(command_count2)
-    #FixMateInformation
-    #marked_fixed_bam = output + '/' + sample + '_marked_fixed.bam'
-    #command_count3 ='{0} --java-options "{1}" FixMateInformation -I {2} -O {3} -SO coordinate'.format(
-     #   gatk_dir, memorySize, bam, mark_bam, marked_fixed_bam)
-    #logger_g_variantCalling_process.info('GATK fixs the marked duplicates.')
-    #os.system(command_count3)
     #build the index of the marked_fixed bam
     command_count4 = '{0} index {1}'.format(samtools_dir, mark_bam)
     logger_g_variantCalling_process.info('Samtools build the index of  marked bam.')
@@ -108,40 +102,37 @@ def germline_variant_calling(gatk_dir, marked_BQSR_bam,
                             read_filter, read_length,
                             reduce_logs, create_output_variant_index,
                             logger_g_variantCalling_process, logger_g_variantCalling_errors)
-    vcf =  output + '/' + sample + '_variants.g.vcf'
-    command_count ='{0} --java-options "{1}" HaplotypeCaller  -R {2} -I {3} -L {4} -ip {5} -O {6}'.format(
-        gatk_dir, memorySize, ref_fa_file, marked_BQSR_bam, exome_target_bed, read_length, vcf)
+    command_count ='{0} --java-options "{1}" HaplotypeCaller  -R {2} -I {3} -L {4} -ip {5}'.format(
+        gatk_dir, memorySize, ref_fa_file, marked_BQSR_bam, exome_target_bed, read_length)
     logger_g_variantCalling_process.info('Begin to confirm the options parameters of running HaplotypeCaller.')
     if ERC == NULL:
         logger_g_variantCalling_process.info('Runs HaplotypeCaller in default mode on a single input BAM file containing sequence data!')
+        vcf =  output + '/' + sample + '_variants.vcf'
+        command_count + = vcf
     else:
         if ERC == 'GVCF' 
             logger_g_variantCalling_process.info('Runs HaplotypeCaller in GVCF mode!')
-            command_count = command_count + '-ERC {0}'.format(ERC)
+            vcf =  output + '/' + sample + '_variants.g.vcf'
+            command_count + = vcf + '-ERC {0}'.format(ERC)
         else:
             logger_g_variantCalling_process.info('{0} is not a HaplotypeCaller model. Please check the input parameter of ERC!'.format(ERC))
-            exit
-    # if exome_target == NULL:
-    #    logger_g_variantCalling_process.info('Runs HaplotypeCaller without exome intervals!')
-    # else:
-    #    logger_g_variantCalling_process.info('Runs HaplotypeCaller with exome intervals!')
-    #    command_count = command_count + '-L {0}'.format(exome_target)
+
     if read_filter == NULL:
         logger_g_variantCalling_process.info('Run HaplotypeCaller without a read filter!')
     else:
         logger_g_variantCalling_process.info('Run HaplotypeCaller with a read filter that deals with some problems in bam!')
-        command_count = command_count + '--read-filter {0}'.format(read_filter)
+        command_count + = '--read-filter {0}'.format(read_filter)
     if reduce_logs == 'no':
         logger_g_variantCalling_process.info('Run HaplotypeCaller without reduceing the amount of chatter in the logs!')
     else:
         logger_g_variantCalling_process.info('Run HaplotypeCaller with reduceing the amount of chatter in the logs!')
-        command_count = command_count + '--QUIET'
-     if create_output_variant_index == 'FALSE':
+        command_count + = '--QUIET'
+    if create_output_variant_index == 'FALSE':
         logger_g_variantCalling_process.info('Run HaplotypeCaller with turnning off automatic variant index creation!')
-        command_count = command_count + '--create-output-variant-index {0}'.format(create_output_variant_index)
+        command_count + = '--create-output-variant-index {0}'.format(create_output_variant_index)
     else:
         logger_g_variantCalling_process.info('Run HaplotypeCaller with turnning on automatic variant index creation!')
-        command_count = command_count + '--create-output-variant-index {0}'.format(create_output_variant_index)
+        command_count + = '--create-output-variant-index {0}'.format(create_output_variant_index)
     logger_g_variantCalling_process.info('Begin to do germline variant calling.')
     os.system(command_count)
     logger_g_variantCalling_process.info('Time cost at germline variant calling == ' + str((time.time() - time_start) / 60) + 'min')

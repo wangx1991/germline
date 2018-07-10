@@ -19,7 +19,7 @@ def align_reads_bwa(bwa_dir, ref_fa_file, ref_index_name, read1, read2,
         print("Error: cannot find NGS read file!")
         return 1
 
-    index_file_extensions = ['.pac', '.amb','.ann','bwt', '.sa']
+    index_file_extensions = ['.pac', '.amb','.ann','.bwt', '.sa']
     genome_indexed = True
     for extension in index_file_extensions:
         if not os.path.isfile(ref_index_name + extension):
