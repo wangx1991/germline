@@ -104,3 +104,14 @@ def store_germline_VC_logs(log_dir):
                                         log_dir + '/germline_VC_errors.log',
                                         formatter_germline_VC_errors)
     return logger_germline_VC_process, logger_germline_VC_errors
+
+def store_annotation_logs(log_dir):
+    formatter_annotation_process = logging.Formatter("%(asctime)s;%(message)s")
+    formatter_annotation_errors = logging.Formatter("%(asctime)s;%(levelname)s; %(message)s")
+    logger_annotation_dir_process = setup_logger('Annotation variant Messages',
+                                         log_dir + '/annotation_process.log',
+                                         formatter_annotation_process)
+    logger_annotation_dir_errors = setup_logger('Errors & Warnings of Annotation variant',
+                                        log_dir + '/annotation_errors.log',
+                                        formatter_annotation_errors)
+    return logger_annotation_dir_process, logger_annotation_dir_errors

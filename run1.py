@@ -13,7 +13,8 @@ import argparse
 
 #sys.path.append(os.path.split(os.path.realpath(__file__))[0])
 #import the logging functions
-from pipelines.log.log import store_pipeline_logs , store_trim_logs, store_filter_logs, store_align_logs , store_cluster_logs , store_reformat_logs, store_germline_VC_logs
+from pipelines.log.log import store_pipeline_logs , store_trim_logs, store_filter_logs, store_align_logs , store_cluster_logs , \
+                              store_reformat_logs, store_germline_VC_logs, store_annotation_logs
 #import the trim function
 from pipelines.trim.trim_reads import trim_read_pairs
 #import the align function
@@ -25,14 +26,18 @@ from pipelines.cluster_barcode.umitools import umitool
 #import the reformat sam function
 from pipelines.reformat.reformat_sam import reformat_sam
 #import the variant calling funcitons
-from pipelines.variant_call.g_variantCall import sam_to_bem , germline_variant_calling
+from pipelines.variant_call.g_variantCall1 import sam_to_bem , germline_variant_calling
+#import the annotation variant funcitons
+from pipelines.variant_call.annotation_gatk_HC import annotationmain
 
 def script_information():
     print ("\nApplication: pipelines of QIAseq Targeted DNA Panel\n")
     print ("=====================================================================")
     print ("Required environment: python \ bwa \ samtools \ GATK")
 
-parser = argparse.ArgumentParser(usage = "\n\npython %(prog)s --source --sample_name --tailname --primers_file --exome_target_bed --output --bwa_dir --samtools_dir --umitools_dir --gatk_dir --ref_index_name --ref_fa_file --total_ref_fa_file --total_ref_fa_dict --known_sites --read_length --ERC")
+parser = argparse.ArgumentParser(usage = "\n\npython %(prog)s --source --sample_name --tailname --primers_file --exome_target_bed --output \
+                                          --bwa_dir --samtools_dir --umitools_dir --gatk_dir --ref_index_name --ref_fa_file --total_ref_fa_file \
+                                          --total_ref_fa_dict --known_sites --ERC --db_cosmic --db_clinvar --db_g1000 --anno_geneID")
 parser.add_argument("--source", help = "Path to input reads in FASTA format", type = str)
 parser.add_argument("--sample_name", help = "the sample name of raw reads", type = str)
 parser.add_argument("--tailname", help = "the tailname of sample raw reads", type =str)
@@ -56,12 +61,15 @@ parser.add_argument("--edit_dist", help = "the parameter of edit distance betwee
 parser.add_argument("--memorySize", help = "the cutoff of Java memory", type = str, default = '4G')
 parser.add_argument("--gatk_dir", help = "the install path of GATK4", type = str)
 parser.add_argument("--known_sites", help = "the list of --known-sites , sep=',' ", type = str)
-parser.add_argument("--read_length", help = "the length of reads ", type = int)
 parser.add_argument("--exome_target_bed", help = "the bed file of exome intervals", type = str) 
 parser.add_argument("--ERC", help = "switch to running HaplotypeCaller in GVCF mode", type = str, default = 'no')
 parser.add_argument("--read_filter", help = "add a read filter that deals with some problems", type = str, default = 'no')
-#parser.add_argument("--reduce_logs", help = "reduce the amount of chatter in the logs: --QUIET : yes", type = str, default = 'no' , choice = ['no', 'yes'])
-#parser.add_argument("--create_output_variant_index", help = "turn off automatic variant index creation", type = str, default = 'FALSE' , choice = ['FALSE', 'TRUE'])
+parser.add_argument("--snp_filter", help = "add parameters for filtering SNPs", type = str, default = 'DP < 20 || QD < 2.0 || FS > 60.0 || MQ < 40.0 || MQRankSum < -12.5 || ReadPosRankSum < -8.0')
+parser.add_argument("--indel_filter", help = "add parameters for filtering Indels", type = str, default = 'DP < 20 || QD < 2.0 || FS > 200.0 || ReadPosRankSum < -20.0')
+parser.add_argument("--db_cosmic", help = "add cosmic databases of variants", type = str)
+parser.add_argument("--db_clinvar", help = "add clinvar databases of variants", type = str)
+parser.add_argument("--db_g1000", help = "add g1000 databases of variants", type = str)
+parser.add_argument("--anno_geneID", help = "add annotation gene ID of variants", type = str)
 parser.add_argument("-v", '-version', action = 'version', version =' %(prog)s 1.0')
 parser.add_argument("--test", help = "the subprocess of the script", type = int, default = 1)
 
@@ -126,10 +134,17 @@ def main():
     total_ref_fa_dict = args.total_ref_fa_dict
     total_ref_fa_file = args.total_ref_fa_file
     known_sites = args.known_sites
-    read_length = args.read_length
+    #read_length = args.read_length
     exome_target_bed = args.exome_target_bed
     ERC = args.ERC
     read_filter = args.read_filter
+    snp_filter = args.snp_filter
+    indel_filter = args.indel_filter
+    #--annotation
+    ref_ens = args.anno_geneID
+    db_cosmic = args.db_cosmic
+    db_clinvar = args.db_clinvar
+    db_g1000 = args.db_g1000
     #---
     test_level = args.test
     ##########################################################################################
@@ -186,7 +201,7 @@ def main():
         print("Test align module!")
         exit()
 
-    ##########################################################################################
+    ######################################annotationmain####################################################
     #---post_align
     ##########################################################################################
     #time cost
@@ -271,6 +286,8 @@ def main():
     ##########################################################################################
     #---Germline variant calling
     ##########################################################################################
+    #time cost
+    time_start = time.time()
     #germline_VC_dir
     germline_VC_dir = out_dir + '/'+ 'germline_VC'
     if not os.path.exists(germline_VC_dir):
@@ -279,15 +296,15 @@ def main():
     logger_germline_VC_process, logger_germline_VC_errors = store_germline_VC_logs(log_dir)
     
     #---modify the known-sites
-    known_sites=known_sites.replace(',' , ' --known-sites ')
+    known_sites = known_sites.replace(',' , ' --known-sites ')
     
     vready_sam = output_sam
     sam_to_bem(gatk_dir, samtools_dir,
                vready_sam, sample,
                germline_VC_dir, memorySize,
                exome_target_bed, 
-               total_ref_fa_file,total_ref_fa_dict,
-               known_sites, read_length,
+               total_ref_fa_file, total_ref_fa_dict,
+               known_sites,
                logger_germline_VC_process, logger_germline_VC_errors)
 
     marked_BQSR_bam = germline_VC_dir + '/' + sample + '_sorted.MarkDuplicates.BQSR.bam'
@@ -296,14 +313,54 @@ def main():
                              sample, germline_VC_dir, 
                              memorySize, total_ref_fa_file, 
                              Exon_Interval, ERC,
-                             read_filter,read_length,
+                             read_filter,
+                             snp_filter,indel_filter,
                              logger_germline_VC_process, logger_germline_VC_errors)
-    
-    logger_pipeline_process.info('Sample: {0}  has been processed after {1} min.'.format( sample , (time.time() - time_start1) / 60))
+    logger_germline_VC_process.info('Finish germline variant calling after {0} min.'.format((time.time() - time_start) / 60))
+    logger_pipeline_process.info('Finish germline variant callin after {0} min.'.format((time.time() - time_start) / 60))
 
     if test_level == 6:
         print("Test variant calling module!")
         exit()
+    
+    ##########################################################################################
+    #---Annotation variant calling
+    ##########################################################################################
+    #time cost
+    time_start = time.time()
+    #Annotation dir
+    annotation_dir = out_dir + '/'+ 'annotation'
+    if not os.path.exists(annotation_dir):
+        os.makedirs(annotation_dir)
+    
+    logger_annotation_process, logger_annotation_errors = store_annotation_logs(log_dir)
+    
+    snp_vcf = germline_VC_dir + '/'  + sample + '.raw_variants_SNP.vcf'
+    filter_snp = germline_VC_dir + '/'  + sample + '.filter_SNP.vcf'
+    indel_vcf = germline_VC_dir + '/'  + sample + '.raw_variants_indel.vcf'
+    filter_indel = germline_VC_dir + '/'  + sample + '.filter_indel.vcf'
+    #annotation
+    annotationmain(db_cosmic, db_clinvar, db_g1000, 
+                   ref_ens,
+                   snp_vcf, sample,
+                   annotation_dir, logger_annotation_process, logger_annotation_errors)
+    annotationmain(db_cosmic, db_clinvar, db_g1000, 
+                   ref_ens,
+                   filter_snp, sample,
+                   annotation_dir, logger_annotation_process, logger_annotation_errors)
+    annotationmain(db_cosmic, db_clinvar, db_g1000, 
+                   ref_ens,
+                   indel_vcf, sample,
+                   annotation_dir, logger_annotation_process, logger_annotation_errors)
+    annotationmain(db_cosmic, db_clinvar, db_g1000, 
+                   ref_ens,
+                   filter_indel, sample,
+                   annotation_dir, logger_annotation_process, logger_annotation_errors)
+    logger_annotation_process.info('Finish annotation variant after {0} min.'.format((time.time() - time_start) / 60))
+    logger_pipeline_process.info('Sample: {0}  has been processed after {1} min.'.format( sample , (time.time() - time_start1) / 60))
 
+    if test_level == 7:
+        print("Test annotation variant module!")
+        exit()
 if __name__ == '__main__':
     main()

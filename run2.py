@@ -25,7 +25,7 @@ from pipelines.cluster_barcode.umitools import umitool
 #import the reformat sam function
 from pipelines.reformat.reformat_sam import reformat_sam
 #import the variant calling funcitons
-from pipelines.variant_call.g_variantCall import sam_to_bem , germline_variant_calling
+from pipelines.variant_call.g_variantCall1 import sam_to_bem , germline_variant_calling
 
 def script_information():
     print ("\nApplication: pipelines of QIAseq Targeted DNA Panel\n")
@@ -56,7 +56,7 @@ parser.add_argument("--edit_dist", help = "the parameter of edit distance betwee
 parser.add_argument("--memorySize", help = "the cutoff of Java memory", type = str, default = '4G')
 parser.add_argument("--gatk_dir", help = "the install path of GATK4", type = str)
 parser.add_argument("--known_sites", help = "the list of --known-sites , sep=',' ", type = str)
-parser.add_argument("--read_length", help = "the length of reads ", type = int)
+#parser.add_argument("--read_length", help = "the length of reads ", type = int)
 parser.add_argument("--exome_target_bed", help = "the bed file of exome intervals", type = str) 
 parser.add_argument("--ERC", help = "switch to running HaplotypeCaller in GVCF mode", type = str, default = 'no')
 parser.add_argument("--read_filter", help = "add a read filter that deals with some problems", type = str, default = 'no')
@@ -82,6 +82,7 @@ if len(sys.argv) == 1:
     parser.print_help()
     exit()
 
+    
 def main():
     #time cost
     time_start1 = time.time()
@@ -126,7 +127,7 @@ def main():
     total_ref_fa_dict = args.total_ref_fa_dict
     total_ref_fa_file = args.total_ref_fa_file
     known_sites = args.known_sites
-    read_length = args.read_length
+    #read_length = args.read_length
     exome_target_bed = args.exome_target_bed
     ERC = args.ERC
     read_filter = args.read_filter
@@ -287,7 +288,7 @@ def main():
                germline_VC_dir, memorySize,
                exome_target_bed, 
                total_ref_fa_file,total_ref_fa_dict,
-               known_sites, read_length,
+               known_sites,
                logger_germline_VC_process, logger_germline_VC_errors)
 
     marked_BQSR_bam = germline_VC_dir + '/' + sample + '_sorted.MarkDuplicates.BQSR.bam'
@@ -296,7 +297,7 @@ def main():
                              sample, germline_VC_dir, 
                              memorySize, total_ref_fa_file, 
                              Exon_Interval, ERC,
-                             read_filter,read_length,
+                             read_filter,
                              logger_germline_VC_process, logger_germline_VC_errors)
     
     logger_pipeline_process.info('Sample: {0}  has been processed after {1} min.'.format( sample , (time.time() - time_start1) / 60))

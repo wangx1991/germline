@@ -2,7 +2,7 @@ from __future__ import barry_as_FLUFL
 
 __all__  =  [ 'sample' , 'output ' , 'memorySize' , 'gatk_dir ' , 'vready_sam', 'marked_BQSR_bam',
               'ref_fa_file' ,'ref_fa_dict', 'exome_target_bed' , 'ERC' , 'samtools_dir' ,
-              'known_sites', 'read_length', 'read_filter',
+              'known_sites', 'read_filter', 'snp_filter' , 'indel_filter',
               'logger_g_variantCalling_process', 'logger_g_variantCalling_errors']
 __version__  =  '1.0'
 __author__  =  'Wang Xian'
@@ -21,7 +21,7 @@ def sam_to_bem(gatk_dir, samtools_dir,
                output, memorySize,
                exome_target_bed, 
                ref_fa_file,ref_fa_dict,
-               known_sites, read_length,
+               known_sites, 
                logger_g_variantCalling_process, logger_g_variantCalling_errors):
     # sam to bam By SortSam in GATK
     sortedsam = output + '/' + sample + '_sorted.sam'
@@ -92,8 +92,8 @@ def sam_to_bem(gatk_dir, samtools_dir,
     #Base(Quality Score) Recalibration
     #BaseRecalibrator---Generate Base Quality Score Recalibration (BQSR) model
     recal_data_table =  output + '/' + sample + '.recal_data.table'
-    command_count5 ='{0} --java-options "{1}" BaseRecalibrator -R {2} -I {3} -L {4} -ip {5} --known-sites {6} -O {7}'.format(
-        gatk_dir, memorySize, ref_fa_file, mark_RG_bam, Exon_Interval, read_length, known_sites, recal_data_table)
+    command_count5 ='{0} --java-options "{1}" BaseRecalibrator -R {2} -I {3} -L {4} --known-sites {5} -O {6}'.format(
+        gatk_dir, memorySize, ref_fa_file, mark_RG_bam, Exon_Interval, known_sites, recal_data_table)
     time_start1= time.time()
     os.system(command_count5)
     logger_g_variantCalling_process.info("GATK generate Base Quality Score Recalibration (BQSR) model----cost %.2f min.", (time.time()-time_start1)/60)
@@ -106,8 +106,8 @@ def sam_to_bem(gatk_dir, samtools_dir,
     logger_g_variantCalling_process.info("ATK generate report of Base Quality Score Recalibration (BQSR) model----cost %.2f min.", (time.time()-time_start1)/60)
     #ApplyBQSR--Apply Base Quality Score Recalibration (BQSR) model
     bgsr_bam =  output + '/' + sample + '_sorted.MarkDuplicates.BQSR.bam'
-    command_count7 ='{0} --java-options "{1}" ApplyBQSR -R {2} -I {3} -bqsr {4}  -L {5} -ip {6} -O {7}'.format(
-        gatk_dir, memorySize, ref_fa_file, mark_RG_bam, recal_data_table, Exon_Interval, read_length, bgsr_bam)
+    command_count7 ='{0} --java-options "{1}" ApplyBQSR -R {2} -I {3} -bqsr {4} -L {5} -O {6}'.format(
+        gatk_dir, memorySize, ref_fa_file, mark_RG_bam, recal_data_table, Exon_Interval, bgsr_bam)
     time_start1= time.time()
     os.system(command_count7)
     logger_g_variantCalling_process.info("GATK apply Base Quality Score Recalibration (BQSR) model----cost %.2f min.", (time.time()-time_start1)/60)
@@ -118,20 +118,22 @@ def germline_variant_calling(gatk_dir, marked_BQSR_bam,
                             sample, output, 
                             memorySize, ref_fa_file,
                             Exon_Interval, ERC,
-                            read_filter, read_length,
+                            read_filter,
+                            snp_filter,indel_filter,
                             logger_g_variantCalling_process, logger_g_variantCalling_errors):
-    command_count ='{0} --java-options "{1}" HaplotypeCaller  -R {2} -I {3} -L {4} -ip {5}'.format(
-        gatk_dir, memorySize, ref_fa_file, marked_BQSR_bam, Exon_Interval, read_length)
+    command_count ='{0} --java-options "{1}" HaplotypeCaller -R {2} -I {3} -L {4}'.format(
+        gatk_dir, memorySize, ref_fa_file, marked_BQSR_bam, Exon_Interval)
     logger_g_variantCalling_process.info('Begin to confirm the options parameters of running HaplotypeCaller.')
+    vcf1 =  output + '/' + sample + '.raw_variants.vcf'
     if ERC == 'no':
         logger_g_variantCalling_process.info('Runs HaplotypeCaller in default mode on a single input BAM file containing sequence data!')
-        vcf =  output + '/' + sample + '_variants.vcf'
-        command_count = command_count + ' ' +vcf
+        vcf =  output + '/' + sample + '.raw_variants.vcf'
+        command_count = command_count + ' ' + vcf
     else:
         if ERC == 'GVCF':
             logger_g_variantCalling_process.info('Runs HaplotypeCaller in GVCF mode!')
-            vcf =  output + '/' + sample + '_variants.g.vcf'
-            command_count = command_count + ' '+ vcf + ' -ERC {0}'.format(ERC)
+            vcf =  output + '/' + sample + '.raw_variants.g.vcf'
+            command_count = command_count + ' -O {0} -ERC {1}'.format(vcf, ERC)
         else:
             logger_g_variantCalling_process.info('{0} is not a HaplotypeCaller model. Please check the input parameter of ERC!'.format(ERC))
 
@@ -143,5 +145,41 @@ def germline_variant_calling(gatk_dir, marked_BQSR_bam,
     logger_g_variantCalling_process.info('Begin to do germline variant calling.')
     time_start1 = time.time()
     os.system(command_count)
-    logger_g_variantCalling_process.info('Compeleted germline variant calling by GATK.')
-    logger_g_variantCalling_process.info('Time cost at germline variant calling == ' + str((time.time() - time_start1) / 60) + 'min')
+    logger_g_variantCalling_process.info('Compeleted HaplotypeCaller by GATK.')
+    logger_g_variantCalling_process.info('Time cost at HaplotypeCaller == ' + str((time.time() - time_start1) / 60) + 'min')
+    #-Joint-Call Cohort
+    if ERC == 'GVCF':
+        command_count1 ='{0} --java-options "{1}" GenotypeGVCFs -R {2} --variant {3} -O {4}'.format(
+        gatk_dir, memorySize, ref_fa_file, vcf,vcf1)
+        time_start1 = time.time()
+        os.system(command_count1)
+        logger_g_variantCalling_process.info('Compeleted GenotypeGVCFs by GATK.')
+        logger_g_variantCalling_process.info('Time cost at GenotypeGVCFs == ' + str((time.time() - time_start1) / 60) + 'min')
+    #-SNP
+    snp_vcf = output + '/' + sample + '.raw_variants_SNP.vcf'
+    command_count2 ='{0} --java-options "{1}" SelectVariants -R {2} --variant {3} -O {4} --select-type-to-include SNP'.format(
+        gatk_dir, memorySize, ref_fa_file, vcf1, snp_vcf)
+    os.system(command_count2)
+    logger_g_variantCalling_process.info('Compeleted SelectVariants SNP by GATK.')
+    logger_g_variantCalling_process.info('Time cost at SelectVariants SNP == ' + str((time.time() - time_start1) / 60) + 'min')
+    #filter variant in SNP
+    filter_snp_vcfs = output + '/' + sample + '.filter_SNP.vcf'
+    command_count2fs ='{0} --java-options "{1}" VariantFiltration -R {2} --variant {3} -O {4} --filter-expression "{5}" --filter-name "my_snp_filter"'.format(
+        gatk_dir, memorySize, ref_fa_file, snp_vcf,filter_snp_vcfs, snp_filter)
+    os.system(command_count2fs)
+    logger_g_variantCalling_process.info('Compeleted filter SNP by GATK.')
+    logger_g_variantCalling_process.info('Time cost at filter SNP == ' + str((time.time() - time_start1) / 60) + 'min')
+    #indel
+    indel_vcf = output + '/' + sample + '.raw_variants_indel.vcf'
+    command_count3 ='{0} --java-options "{1}" SelectVariants -R {2} --variant {3} -O {4} --select-type-to-include INDEL'.format(
+        gatk_dir, memorySize, ref_fa_file, vcf1, indel_vcf)
+    os.system(command_count3)
+    logger_g_variantCalling_process.info('Compeleted SelectVariants indel by GATK.')
+    logger_g_variantCalling_process.info('Time cost at SelectVariants indel == ' + str((time.time() - time_start1) / 60) + 'min')
+    #filter variant in indel
+    filter_indel_vcfi = output + '/' + sample + '.filter_indel.vcf'
+    command_count2fi ='{0} --java-options "{1}" VariantFiltration -R {2} --variant {3} -O {4} --filter-expression "{5}" --filter-name "my_indel_filter"'.format(
+        gatk_dir, memorySize, ref_fa_file, indel_vcf, filter_indel_vcfi, indel_filter)
+    os.system(command_count2fi)
+    logger_g_variantCalling_process.info('Compeleted filter SNP by GATK.')
+    logger_g_variantCalling_process.info('Time cost at filter SNP == ' + str((time.time() - time_start1) / 60) + 'min')
